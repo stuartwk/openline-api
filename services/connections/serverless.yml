@@ -1,0 +1,87 @@
+service:
+  name: openline-connections
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+custom:
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
+  stage: ${opt:stage, self:provider.stage}
+  connectionsTableName: openline-connections-${self:custom.stage}
+  # callsTableName: openline-calls-${self:custom.stage}
+  domains:
+    prod: api.openline.telspark.com
+    staging: api-staging.openline.telspark.com
+    dev: api-dev.openline.telspark.com
+  customDomain:
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    basePath: 'ws'
+    certificateName: '*.openline.telspark.com'
+    stage: "${self:custom.stage}"
+    createRoute53Record: true
+
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-webpack
+  - serverless-domain-manager
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  apiGateway:
+    minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    CONNECTIONS_TABLE: ${self:custom.connectionsTableName}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Scan
+        # - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:table/openline-connections-${opt:stage, 'dev'}"
+
+functions:
+
+  connectionHandler:
+    handler: handler.connectionHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+
+  getConnectionId:
+    handler: handler.getConnectionId
+    events:
+      - websocket:
+          route: getConnectionId
+
+
+  test:
+    handler: handler.test
+    events:
+      - http:
+          method: get
+          path: '/test'
+
+resources:
+  Resources:
+    OpenlineConnectionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.connectionsTableName}
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        # Set the capacity to auto-scale
+        BillingMode: PAY_PER_REQUEST
+        # # add stream to dynamo table
+        # StreamSpecification:
+        #   StreamViewType: NEW_IMAGE

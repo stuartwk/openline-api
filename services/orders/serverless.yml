@@ -1,0 +1,84 @@
+service:
+  name: openline-orders
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+custom:
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
+  stage: ${opt:stage, self:provider.stage}
+  ordersTableName: openline-orders-${self:custom.stage}
+  # callsTableName: openline-calls-${self:custom.stage}
+  domains:
+    prod: api.openline.telspark.com
+    staging: api-staging.openline.telspark.com
+    dev: api-dev.openline.telspark.com
+  customDomain:
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    basePath: 'orders'
+    certificateName: '*.openline.telspark.com'
+    stage: "${self:custom.stage}"
+    createRoute53Record: true
+  cors:
+    prod: '[*.openline.telspark.com]'
+    dev: '*'
+
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-webpack
+  - serverless-domain-manager
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  apiGateway:
+    minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    ORDERS_TABLE: ${self:custom.ordersTableName}
+    CORS: ${self:custom.cors.${self:custom.stage}}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        # - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        # - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:table/openline-orders-${opt:stage, 'dev'}"
+
+functions:
+  createCharge:
+    handler: handler.create
+    events:
+      - http:
+          method: post
+          path: ''
+          cors: true
+
+  fetchCharge:
+    handler: handler.fetch
+    events:
+      - http:
+          method: get
+          path: '/{orderId}'
+          cors: true
+
+resources:
+  Resources:
+    OpenlineOrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.ordersTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        # Set the capacity to auto-scale
+        BillingMode: PAY_PER_REQUEST
+        # # add stream to dynamo table
+        # StreamSpecification:
+        #   StreamViewType: NEW_IMAGE

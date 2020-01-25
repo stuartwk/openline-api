@@ -1,0 +1,19 @@
+{
+  "name": "openline-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Stuart Kuentzel",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^13.1.4",
+    "aws-sdk": "^2.597.0",
+    "opennode": "^1.2.1"
+  }
+}
