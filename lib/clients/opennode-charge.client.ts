@@ -28,7 +28,7 @@ export class OpenNodeChargeClient {
             return await opennode.createCharge({
               amount: 1,
               // currency: "USD",
-              callback_url: "https://orders.openline.telspark.com/payment",
+              callback_url: `https://api-dev.openline.telspark.com/orders/payment`,
               auto_settle: false,
               order_id
             });

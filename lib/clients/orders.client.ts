@@ -1,4 +1,6 @@
 import { DynamoDB } from 'aws-sdk';
+import { OrderStatus } from '../constants/order-status.enum';
+import { PhoneRegion } from '../constants/phone-region.enum';
 
 export class OrdersClient {
 
@@ -10,7 +12,16 @@ export class OrdersClient {
         this.ordersTable = process.env.ORDERS_TABLE;
     }
 
-    async create(order: {id: string, phoneNumber: string, expiresAt: number, ip: string, chargeId: string, connectionId: string}) {
+    async create(order: {
+        id: string, 
+        phoneNumber: string, 
+        expiresAt: number, 
+        ip: string, 
+        chargeId: string, 
+        connectionId: string,
+        status: OrderStatus,
+        region: PhoneRegion
+    }) {
         
         const query = {
             TableName : this.ordersTable,
@@ -44,6 +55,32 @@ export class OrdersClient {
             console.error(`${error.status} | ${error.message}`);
             throw(error);
         }
+
+    }
+
+    async markOrderPaid(p: {id: string, connection: {id: string, userName: string, password: string, reservedUntil: number}}) {
+
+        const { id, connection } = p;
+
+        const params = {
+            TableName: this.ordersTable,
+            Key:{
+                "id": id,
+            },
+            UpdateExpression: "SET #status = :status, #connection = :connection",
+            ExpressionAttributeNames : {
+                "#status" : "status",
+                "#connection" : "callConnectionAuth"
+            },
+            ExpressionAttributeValues:{
+                ":status": 'PAID',
+                ":connection": connection
+            },
+            ReturnValues:"ALL_NEW"
+        };
+        
+        console.log("marking order paid...");
+        return await this.docClient.update(params).promise();
 
     }
 

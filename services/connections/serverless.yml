@@ -21,6 +21,14 @@ custom:
     certificateName: '*.openline.telspark.com'
     stage: "${self:custom.stage}"
     createRoute53Record: true
+  connectionSnsTopic: "${self:service}-${self:provider.stage}-sns-connection"
+  connectionSnsTopicArn:
+    # local:
+    #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
+    dev:
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
+    prod:
+     { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
 
 # Add the serverless-webpack plugin
 plugins:
@@ -61,6 +69,17 @@ functions:
           route: getConnectionId
 
 
+  broadcast:
+    handler: dispatcher.broadcast
+    events:
+      - sns:
+          arn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
+          topicName: ${self:custom.connectionSnsTopic}
+          # Someday figure out why this works in Phone but not here
+          # filterPolicy:
+          #   broadcastType:
+          #     - BROADCAST_ALL
+
   test:
     handler: handler.test
     events:
@@ -70,6 +89,11 @@ functions:
 
 resources:
   Resources:
+    ConnectionTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: Connection SNS ${self:custom.stage}
+        TopicName: ${self:custom.connectionSnsTopic}
     OpenlineConnectionsTable:
       Type: AWS::DynamoDB::Table
       Properties:

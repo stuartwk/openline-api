@@ -8,10 +8,45 @@ custom:
   webpack:
     webpackConfig: ./webpack.config.js
     includeModules: true
+  stage: ${opt:stage, self:provider.stage}
+  phonesTableName: openline-phones-${self:custom.stage}
+  # callsTableName: openline-calls-${self:custom.stage}
+  domains:
+    prod: api.openline.telspark.com
+    staging: api-staging.openline.telspark.com
+    dev: api-dev.openline.telspark.com
+  customDomain:
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    basePath: 'phones'
+    certificateName: '*.openline.telspark.com'
+    stage: "${self:custom.stage}"
+    createRoute53Record: true
+  cors:
+    prod: '[*.openline.telspark.com]'
+    dev: '*'
+  phoneSnsTopic: "${self:service}-${self:provider.stage}-sns-phone"
+  phoneSnsTopicArn:
+    # local:
+    #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
+    dev:
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
+    prod:
+     { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
+  # connectionSnsTopic: "${self:service}-${self:provider.stage}-sns-connection"
+  connectionSnsTopic: "openline-connections-${self:provider.stage}-sns-connection"
+  connectionSnsTopicArn:
+    # local:
+    #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
+    dev:
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
+    prod:
+     { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
+
 
 # Add the serverless-webpack plugin
 plugins:
   - serverless-webpack
+  - serverless-domain-manager
 
 provider:
   name: aws
@@ -20,11 +55,79 @@ provider:
     minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    PHONES_TABLE: ${self:custom.phonesTableName}
+    CORS: ${self:custom.cors.${self:custom.stage}}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Scan
+        # - dynamodb:GetItem
+        # - dynamodb:PutItem
+        - dynamodb:Query
+        - dynamodb:UpdateItem
+        # - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:table/openline-phones-${opt:stage, 'dev'}"
+    - Effect: Allow
+      Action:
+        - SNS:Publish
+      Resource: { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
 
 functions:
-  hello:
-    handler: handler.hello
+  
+  fetchPhones:
+    handler: handler.fetchPhones
     events:
       - http:
           method: get
-          path: hello
+          path: '/'
+          cors: true
+
+  telnyxHooks:
+    handler: handler.telnyxHooks
+    events:
+      - http:
+          method: post
+          path: 'hooks'
+          cors: true
+
+  reservePhone:
+    handler: dispatcher.reservePhone
+    events:
+      - sns:
+          arn: ${self:custom.phoneSnsTopicArn.${self:provider.stage}}
+          topicName: ${self:custom.phoneSnsTopic}
+          filterPolicy:
+            type:
+              - RESERVE_PHONE
+              # - UNRESERVE_PHONE
+        # topicName: ${self:custom.phoneSnsTopic}
+        # displayName: UpdatePhone
+    environment:
+      connectionSnsTopicArn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
+
+resources:
+  Resources:
+    PhoneTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: Update Phone ${self:custom.stage}
+        TopicName: ${self:custom.phoneSnsTopic}
+    OLPhonesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.phonesTableName}
+        AttributeDefinitions:
+          - AttributeName: region
+            AttributeType: S
+          - AttributeName: phoneNumber
+            AttributeType: S
+        KeySchema:
+          - AttributeName: region
+            KeyType: HASH
+          - AttributeName: phoneNumber
+            KeyType: RANGE
+        # Set the capacity to auto-scale
+        BillingMode: PAY_PER_REQUEST
+        # # add stream to dynamo table
+        # StreamSpecification:
+        #   StreamViewType: NEW_IMAGE

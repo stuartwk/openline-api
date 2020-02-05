@@ -13,7 +13,9 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^13.1.4",
+    "@types/aws-lambda": "^8.10.17",
     "aws-sdk": "^2.597.0",
+    "node-fetch": "^2.6.0",
     "opennode": "^1.2.1"
   }
 }

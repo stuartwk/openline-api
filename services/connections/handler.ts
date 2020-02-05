@@ -1,6 +1,7 @@
 import { APIGatewayProxyHandler, Handler } from 'aws-lambda';
 import 'source-map-support/register';
 import { ConnectionClient } from '../../lib/clients/connection.client';
+import { ConnectionTransmitTypes } from '../../lib/constants/connection-transmit-types.enum';
 
 export const hello: APIGatewayProxyHandler = async (event, _context) => {
   return {
@@ -18,6 +19,9 @@ const enum RouteKeyTypes {
 }
 
 export const connectionHandler: Handler = async (event, _context) => {
+
+
+  console.log('CONNETION HANDLER HIT!');
 
   const connectionClient = new ConnectionClient();
   const { requestContext } = event;
@@ -53,7 +57,7 @@ export const getConnectionId: Handler = async (event, context) => {
 
   const message = await connectionClient.transmit({connectionID: requestContext.connectionId, payload: {
       message: 'connection id retreived',
-      type: 'SET_CONNECTION_ID',
+      type: ConnectionTransmitTypes.SET_CONNECTION_ID,
       input: requestContext.connectionId}});
   
   console.log('message is: ', message);
