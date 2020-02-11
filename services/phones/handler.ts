@@ -2,7 +2,8 @@ import { APIGatewayProxyHandler } from 'aws-lambda';
 import 'source-map-support/register';
 import { PhonesClient } from '../../lib/clients/phones.client';
 import { PhoneRegion } from '../../lib/constants/phone-region.enum';
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDB, SNS } from 'aws-sdk';
+import { BroadcastType } from '../../lib/constants/broadcast-type.enum';
 
 export const fetchPhones: APIGatewayProxyHandler = async (event, _context) => {
 
@@ -71,24 +72,18 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
     const payload = body.payload;
     const connectionId = payload.connection_id;
 
-    if (payload.hangup_cause === 'normal_clearing') {
+    // if (payload.hangup_cause === 'normal_clearing' || payload.hangup_cause === 'originator_cancel') {
 
-      console.log('CONNECTION ID IS: ', connectionId);
 
       // ==========================
       // scan phones
       // ==========================
     
-      console.log("Updating the item...");
       const phones = await docClient.scan({
         TableName: phonesTable,
       }).promise();
   
-      console.log('phones is: ', phones);
-  
       const target = phones.Items.find( (phone) => phone.connectionId === connectionId );
-  
-      console.log('target is: ', target);
   
       if (target) {
   
@@ -102,17 +97,41 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
           ReturnValues : "UPDATED_NEW"
         };
   
-        const update = await docClient.update(params).promise();
-  
-        console.log('update is: ', update);
+        const _ = await docClient.update(params).promise();
+
+        /**
+         * BROADCAST TO ALL PHONE IS NOW AVAILABLE
+         */
+
+      const payload = {
+        type: 'PHONE_UNRESERVED',
+        input: target
+      }
+
+      // Create Order Paid publish parameters
+      const snsParams = {
+        Message: `PHONE_UNRESERVED`,
+        MessageAttributes: {
+            broadcastType: {
+                DataType: 'String',
+                StringValue: BroadcastType.BROADCAST_ALL
+            },
+            payload: {
+                DataType: 'String',
+                StringValue: JSON.stringify(payload)
+            },
+        },
+        TopicArn: process.env.connectionSnsTopicArn,
+      };
+
+        // Reserve Phone SNS
+        await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(snsParams).promise();
   
       }
 
-    }
+    // }
 
   }
-
-  console.log('===============================================');
 
   return {
     statusCode: 200,

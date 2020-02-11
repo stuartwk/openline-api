@@ -124,19 +124,11 @@ export const openNodeChargeWebhook = async (event, _context) => {
     'Access-Control-Allow-Credentials': true,
   };
 
-  console.log('event body is: ', event.body);
-
   const reqBody = querystring.parse(event.body);
-  console.log('reqBody is: ', reqBody);
   const { order_id, status } = reqBody;
-
-  console.log('order id is: ', order_id);
-  console.log('status is: ', status);
-
   const phonesClient = new PhonesClient();
   const ordersClient = new OrdersClient();
   const telnyxConnectionClient = new TelnyxConnectionsClient();
-  // const connectionsClient = new ConnectionClient();
   const exipiresAt = new Date();
   exipiresAt.setHours( exipiresAt.getHours() + 1 );
   const exipiresUnix = + exipiresAt;
@@ -146,20 +138,9 @@ export const openNodeChargeWebhook = async (event, _context) => {
 
     const orderRes = await ordersClient.fetchOne({id: order_id});
     const order = orderRes.Item;
-
-    console.log('order is: ', order);
-
     const phonesRes = await phonesClient.fetchPhones({region: order.region});
     const phones = phonesRes.Items;
-
-    console.log('phones are: ', phones);
-
     const availablePhone = phones.find( (phone) => !phone.reservedUntil );
-    console.log('available phone is: ', availablePhone);
-
-
-    console.log('phonesnsnstopic is: ', process.env.phoneSnsTopicArn);
-    console.log('process env is: ', process.env);
 
     // SNS Params to Reserve Phone
     var params = {
@@ -184,37 +165,26 @@ export const openNodeChargeWebhook = async (event, _context) => {
     // Reserve Phone SNS
     await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(params).promise();
 
-
-
-
-
     const connectionAuth = await telnyxConnectionClient.resetConnectionAuth(availablePhone.connectionId);
 
     const connection = {
       id: availablePhone.connectionId,
+      phoneNumber: availablePhone.phoneNumber,
       userName: connectionAuth.user_name,
       password: connectionAuth.password,
       reservedUntil
     };
 
-    console.log('connection auth is: ', connectionAuth);
-
     const paidRes = await ordersClient.markOrderPaid({id: order_id, connection});
-    console.log('paidRes: ', paidRes);
 
     if (paidRes.Attributes) {
 
       const paidOrder = paidRes.Attributes;
-      console.log('paid order is: ', paidOrder);
 
-      // await connectionsClient.transmit({connectionID: paidOrder.connectionId, payload: {
-      //   message: 'Order paid',
-      //   type: ConnectionTransmitTypes.ORDER_PAID,
-      //   input: paidOrder
-      // }});
-
-
-
+      const payload = {
+        type: 'ORDER_PAID',
+        input: paidOrder
+      };
 
       // Create Order Paid publish parameters
       const orderPaidParams = {
@@ -226,7 +196,7 @@ export const openNodeChargeWebhook = async (event, _context) => {
             },
             payload: {
                 DataType: 'String',
-                StringValue: JSON.stringify(paidOrder)
+                StringValue: JSON.stringify(payload)
             },
             connectionId: {
               DataType: 'String',
@@ -236,18 +206,12 @@ export const openNodeChargeWebhook = async (event, _context) => {
         TopicArn: process.env.connectionSnsTopicArn,
       };
 
-      console.log('about to broadcast this... ', orderPaidParams);
-
       // Create promise and SNS service object
       try {
         await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(orderPaidParams).promise();
       } catch(error) {
           console.log('error@@@@@ broadcasting phone reserved: ', error);
       }
-
-
-
-
 
     }
 

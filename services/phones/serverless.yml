@@ -89,6 +89,8 @@ functions:
           method: post
           path: 'hooks'
           cors: true
+    environment:
+      connectionSnsTopicArn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
 
   reservePhone:
     handler: dispatcher.reservePhone

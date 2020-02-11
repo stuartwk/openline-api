@@ -34,7 +34,7 @@ const _broadcastToSingle = async (event) => {
 
     const snsHelper = new SNSHelper();
     const connectionId = snsHelper.getSNSAttribute(event, 'connectionId');
-    const payload = snsHelper.getSNSAttribute(event, 'payload');
+    const payload = JSON.parse(snsHelper.getSNSAttribute(event, 'payload'));
     // const action = snsHelper.getSNSAttribute(event, 'action');
 
     const apigatewaymanagementapi = new ApiGatewayManagementApi({
@@ -55,65 +55,9 @@ const _broadcastToAll = async (event) => {
 
     console.log('BROADCAST TO ALL!');
 
-
-    const connectionClient = new ConnectionClient();
-
-    // let connectionsRes;
-
-    // console.log('connection clien created');
-    // try {
-    //     connectionsRes = await connectionClient.fetchConnections();
-    //     console.log('connectionsRes is: ', connectionsRes);
-    // } catch(error) {
-    //     console.error('error fetching connections! ', error);
-    // }
-
-    // const connections = connectionsRes.Items;
-
-
-
-
-    // let connectionsRes;
-
-    // console.log('connection clien created');
-    
+    const connectionClient = new ConnectionClient();    
     const connectionsRes = await connectionClient.fetchConnections();
-
-
     const connections = connectionsRes.Items;
-
-
-
-    // ========
-
-    // const docClient = new DynamoDB.DocumentClient();
-
-    // const connectionsTable = process.env.CONNECTIONS_TABLE;
-    // console.log('connections table is: ', connectionsTable);
-
-
-    // const params = {
-    //     TableName: connectionsTable
-    // };
-
-    // console.log('params are: ', params);
-
-    // const connectionRes = await docClient.scan(params).promise();
-
-    // console.log('connection res is: ', connectionRes);
-
-    // const connections = connectionRes.Items;
-
-
-    // ========
-
-
-
-
-    console.log('fetched connections are: ', connections);
-
-    console.log('event is: ', event.Records[0].Sns);
-
     const snsHelper = new SNSHelper();
     const payload = JSON.parse(snsHelper.getSNSAttribute(event, 'payload'));
     console.log('payload is: ', payload);
@@ -126,7 +70,6 @@ const _broadcastToAll = async (event) => {
     for (let i = 0; i < connections.length; i++) {
 
         const connectionId = connections[i].connectionId;
-        console.log('CONNECTION ID TO BROADCAST ALL IS: ', connectionId);
 
         await apigatewaymanagementapi.postToConnection({
             ConnectionId: connectionId,
@@ -136,30 +79,5 @@ const _broadcastToAll = async (event) => {
     }
 
     return;
-
-
-    // dynamoDb.scan(params, (err, data) => {
-
-    //     if (err) {
-    //       console.error('an error occurred listing: ', err);
-    //     } else {
-    
-    //       data.Items.forEach( async (connection) => {
-    
-    //         await sendMessageToClient('http://api-dev.openline.telspark.com', connection.connectionId, {
-    //           message: 'phones status updated',
-    //           type: 'PHONES_UPDATED',
-    //           input: phones});
-    
-    //         return;
-    
-    //       });
-    
-    //     }
-    
-    //     return;
-    //   });
-
-
 
 }

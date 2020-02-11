@@ -58,7 +58,7 @@ export class OrdersClient {
 
     }
 
-    async markOrderPaid(p: {id: string, connection: {id: string, userName: string, password: string, reservedUntil: number}}) {
+    async markOrderPaid(p: {id: string, connection: {id: string, phoneNumber: string, userName: string, password: string, reservedUntil: number}}) {
 
         const { id, connection } = p;
 
