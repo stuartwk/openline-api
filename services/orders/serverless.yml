@@ -25,7 +25,7 @@ custom:
   cors:
     prod: '[*.openline.telspark.com]'
     dev: '*'
-  phoneSnsTopic: "openline-phones-${self:provider.stage}-sns-phone"
+  phoneSnsTopic: "openline-phones-${self:custom.stage}-sns-phone"
   phoneSnsTopicArn:
     local:
       "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
@@ -33,7 +33,7 @@ custom:
       { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
     prod:
      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
-  connectionSnsTopic: "openline-connections-${self:provider.stage}-sns-connection"
+  connectionSnsTopic: "openline-connections-${self:custom.stage}-sns-connection"
   connectionSnsTopicArn:
     # local:
     #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"

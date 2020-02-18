@@ -21,7 +21,7 @@ custom:
     certificateName: '*.openline.telspark.com'
     stage: "${self:custom.stage}"
     createRoute53Record: true
-  connectionSnsTopic: "${self:service}-${self:provider.stage}-sns-connection"
+  connectionSnsTopic: "${self:service}-${self:custom.stage}-sns-connection"
   connectionSnsTopicArn:
     # local:
     #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"

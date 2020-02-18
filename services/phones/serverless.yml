@@ -10,7 +10,6 @@ custom:
     includeModules: true
   stage: ${opt:stage, self:provider.stage}
   phonesTableName: openline-phones-${self:custom.stage}
-  # callsTableName: openline-calls-${self:custom.stage}
   domains:
     prod: api.openline.telspark.com
     staging: api-staging.openline.telspark.com
@@ -24,19 +23,14 @@ custom:
   cors:
     prod: '[*.openline.telspark.com]'
     dev: '*'
-  phoneSnsTopic: "${self:service}-${self:provider.stage}-sns-phone"
+  phoneSnsTopic: "${self:service}-${self:custom.stage}-sns-phone"
   phoneSnsTopicArn:
-    # local:
-    #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
     dev:
       { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
     prod:
      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.phoneSnsTopic}" ] ]  }
-  # connectionSnsTopic: "${self:service}-${self:provider.stage}-sns-connection"
-  connectionSnsTopic: "openline-connections-${self:provider.stage}-sns-connection"
+  connectionSnsTopic: "openline-connections-${self:custom.stage}-sns-connection"
   connectionSnsTopicArn:
-    # local:
-    #   "arn:aws:sns:us-east-1:123456789012:${self:custom.phoneSnsTopic}"
     dev:
       { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.connectionSnsTopic}" ] ]  }
     prod:
