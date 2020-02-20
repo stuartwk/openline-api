@@ -43,6 +43,7 @@ provider:
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     CONNECTIONS_TABLE: ${self:custom.connectionsTableName}
+    STAGE: ${self:custom.stage}
   iamRoleStatements:
     - Effect: Allow
       Action:

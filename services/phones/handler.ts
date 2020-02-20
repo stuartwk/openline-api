@@ -63,6 +63,7 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
   const docClient = new DynamoDB.DocumentClient();
   const phonesTable = process.env.PHONES_TABLE;
   const body = JSON.parse(event.body);
+  const phonesClient = new PhonesClient();
   console.log('body is: ', body);
 
   if (body.event_type && body.event_type === 'call_hangup') {
@@ -87,17 +88,18 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
   
       if (target) {
   
-        const params = {
-          TableName: phonesTable,
-          Key : {
-              "region": target.region,
-              "phoneNumber": target.phoneNumber            
-          },
-          UpdateExpression : "REMOVE reservedUntil",
-          ReturnValues : "UPDATED_NEW"
-        };
+        // const params = {
+        //   TableName: phonesTable,
+        //   Key : {
+        //       "region": target.region,
+        //       "phoneNumber": target.phoneNumber            
+        //   },
+        //   UpdateExpression : "REMOVE reservedUntil",
+        //   ReturnValues : "UPDATED_NEW"
+        // };
   
-        const _ = await docClient.update(params).promise();
+        // const _ = await docClient.update(params).promise();
+        const unreserve = await phonesClient.unreservePhone({region: target.region, phoneNumber: target.phoneNumber});
 
         /**
          * BROADCAST TO ALL PHONE IS NOW AVAILABLE
@@ -140,5 +142,38 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
       message: 'Thanks for the ☎️ hook',
     }, null, 2),
   };
+
+}
+
+export const resetExpiredPhones = async (_event, _context) => {
+
+  const phonesClient = new PhonesClient();
+  const regions = [PhoneRegion.USA];
+  const date = new Date();
+  const currentTimestamp = Math.floor( (+ date) / 1000 ); 
+
+  for(const region of regions) {
+
+    const reservedPhonesRes = await phonesClient.fetchPhones({region});
+
+    if (reservedPhonesRes && reservedPhonesRes.Count > 0) {
+  
+      for (let i = 0; i < reservedPhonesRes.Count; i++) {
+  
+        const phone = reservedPhonesRes.Items[i];
+
+        if (phone.reservedUntil && (phone.reservedUntil < currentTimestamp)) {
+
+          const _ = await phonesClient.unreservePhone({region: phone.region, phoneNumber: phone.phoneNumber});
+
+        }
+  
+      }
+  
+    }
+
+  }
+
+  return;
 
 }

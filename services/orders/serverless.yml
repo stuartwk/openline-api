@@ -23,7 +23,7 @@ custom:
     stage: "${self:custom.stage}"
     createRoute53Record: true
   cors:
-    prod: '[*.openline.telspark.com]'
+    prod: 'https://openline.telspark.com'
     dev: '*'
   phoneSnsTopic: "openline-phones-${self:custom.stage}-sns-phone"
   phoneSnsTopicArn:

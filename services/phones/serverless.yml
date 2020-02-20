@@ -21,7 +21,7 @@ custom:
     stage: "${self:custom.stage}"
     createRoute53Record: true
   cors:
-    prod: '[*.openline.telspark.com]'
+    prod: 'https://openline.telspark.com'
     dev: '*'
   phoneSnsTopic: "${self:service}-${self:custom.stage}-sns-phone"
   phoneSnsTopicArn:
@@ -100,6 +100,11 @@ functions:
         # displayName: UpdatePhone
     environment:
       connectionSnsTopicArn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
+
+  resetExpiredPhones:
+    handler: handler.resetExpiredPhones
+    events:
+      - schedule: rate(2 hours)
 
 resources:
   Resources:

@@ -49,16 +49,24 @@ export const getConnectionId: Handler = async (event, context) => {
 
   const requestContext = event.requestContext;
   const connectionClient = new ConnectionClient();
+  const stage = process.env.stage;
+  const broadcastUrl = (stage === 'dev')
+    ? 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev'
+    : '5m4ws104ok.execute-api.us-east-1.amazonaws.com/prod';
 
   // await sendMessageToClient('http://api-dev.openline.telspark.com', requestContext.connectionId, {
   //   message: 'connection id retreived',
   //   type: 'SET_CONNECTION_ID',
   //   input: requestContext.connectionId});
 
-  const message = await connectionClient.transmit({connectionID: requestContext.connectionId, payload: {
-      message: 'connection id retreived',
-      type: ConnectionTransmitTypes.SET_CONNECTION_ID,
-      input: requestContext.connectionId}});
+  const message = await connectionClient.transmit({
+      connectionID: requestContext.connectionId,
+      broadcastUrl,
+      payload: {
+        message: 'connection id retreived',
+        type: ConnectionTransmitTypes.SET_CONNECTION_ID,
+        input: requestContext.connectionId
+      }});
   
   console.log('message is: ', message);
 

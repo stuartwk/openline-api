@@ -210,7 +210,7 @@ export const openNodeChargeWebhook = async (event, _context) => {
       try {
         await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(orderPaidParams).promise();
       } catch(error) {
-          console.log('error@@@@@ broadcasting phone reserved: ', error);
+          console.log('error@@@@@ order paid: ', error);
       }
 
     }

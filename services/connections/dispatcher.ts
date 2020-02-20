@@ -9,25 +9,34 @@ export const broadcast: SNSHandler = async (event, _context) => {
 
     const snsHelper = new SNSHelper();
     const broadcastType = snsHelper.getSNSAttribute(event, 'broadcastType');
+    const stage = process.env.STAGE;
+    const broadcastUrl = (stage === 'dev')
+        ? 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev'
+        : '5m4ws104ok.execute-api.us-east-1.amazonaws.com/prod';
 
-    switch (broadcastType) {
-        case BroadcastType.BROADCAST_ALL:
-            await _broadcastToAll(event);
-            break;
 
-        case BroadcastType.BROADCAST_SINGLE:
-            await _broadcastToSingle(event);
-            break;
+    if (stage && (stage === 'prod' || stage === 'dev')) {
+        switch (broadcastType) {
+            case BroadcastType.BROADCAST_ALL:
+                await _broadcastToAll(event, broadcastUrl);
+                break;
     
-        default:
-            console.error('broadcast type does not match! ', broadcastType);
-            break;
+            case BroadcastType.BROADCAST_SINGLE:
+                await _broadcastToSingle(event, broadcastUrl);
+                break;
+        
+            default:
+                console.error('broadcast type does not match! ', broadcastType);
+                break;
+        }
+    } else {
+        throw new Error('No stage set in Connections broadcast dispatcher');
     }
 
 }
 
 
-const _broadcastToSingle = async (event) => {
+const _broadcastToSingle = async (event, broadcastUrl: string) => {
 
     console.log('event records sns is: ', event.Records[0].Sns);
 
@@ -39,7 +48,7 @@ const _broadcastToSingle = async (event) => {
 
     const apigatewaymanagementapi = new ApiGatewayManagementApi({
         apiVersion: '2018-11-29',
-        endpoint: 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev', // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
+        endpoint: broadcastUrl, // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
     });
 
     await apigatewaymanagementapi.postToConnection({
@@ -51,7 +60,7 @@ const _broadcastToSingle = async (event) => {
 
 }
 
-const _broadcastToAll = async (event) => {
+const _broadcastToAll = async (event, broadcastUrl: string) => {
 
     console.log('BROADCAST TO ALL!');
 
@@ -60,11 +69,10 @@ const _broadcastToAll = async (event) => {
     const connections = connectionsRes.Items;
     const snsHelper = new SNSHelper();
     const payload = JSON.parse(snsHelper.getSNSAttribute(event, 'payload'));
-    console.log('payload is: ', payload);
 
     const apigatewaymanagementapi = new ApiGatewayManagementApi({
         apiVersion: '2018-11-29',
-        endpoint: 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev', // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
+        endpoint: broadcastUrl, // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
     });
 
     for (let i = 0; i < connections.length; i++) {

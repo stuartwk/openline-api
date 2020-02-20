@@ -116,16 +116,16 @@ export class ConnectionClient {
 
     }
 
-    async transmit(params: {connectionID: string, payload: ConnectionTransmitEvent<any>}) {
+    async transmit(params: {connectionID: string, broadcastUrl: string, payload: ConnectionTransmitEvent<any>}) {
 
-        const { connectionID, payload } = params;
+        const { connectionID, payload, broadcastUrl } = params;
 
         console.log('transmitting to: ', connectionID);
         console.log('transmitting data: ', payload);
 
         const apigatewaymanagementapi = new ApiGatewayManagementApi({
             apiVersion: '2018-11-29',
-            endpoint: 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev', // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
+            endpoint: broadcastUrl, // wss://z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev
           });
         
         
