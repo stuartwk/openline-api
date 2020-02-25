@@ -105,26 +105,26 @@ export const telnyxHooks: APIGatewayProxyHandler = async (event, _context) => {
          * BROADCAST TO ALL PHONE IS NOW AVAILABLE
          */
 
-      const payload = {
-        type: 'PHONE_UNRESERVED',
-        input: target
-      }
+        const payload = {
+          type: 'PHONE_UNRESERVED',
+          input: target
+        }
 
-      // Create Order Paid publish parameters
-      const snsParams = {
-        Message: `PHONE_UNRESERVED`,
-        MessageAttributes: {
-            broadcastType: {
-                DataType: 'String',
-                StringValue: BroadcastType.BROADCAST_ALL
-            },
-            payload: {
-                DataType: 'String',
-                StringValue: JSON.stringify(payload)
-            },
-        },
-        TopicArn: process.env.connectionSnsTopicArn,
-      };
+        // Create Order Paid publish parameters
+        const snsParams = {
+          Message: `PHONE_UNRESERVED`,
+          MessageAttributes: {
+              broadcastType: {
+                  DataType: 'String',
+                  StringValue: BroadcastType.BROADCAST_ALL
+              },
+              payload: {
+                  DataType: 'String',
+                  StringValue: JSON.stringify(payload)
+              },
+          },
+          TopicArn: process.env.connectionSnsTopicArn,
+        };
 
         // Reserve Phone SNS
         await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(snsParams).promise();

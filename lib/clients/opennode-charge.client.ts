@@ -3,18 +3,20 @@ const opennode = require('opennode');
 export class OpenNodeChargeClient {
 
     callbackUrl: string;
+    charge: number;
 
     constructor(stage) {
 
         switch (stage) {
             case 'dev':
-                console.log('stage is dev!');
+                this.charge = 1;
                 this.callbackUrl = 'https://api-dev.openline.telspark.com/orders/payment';
                 opennode.setCredentials('8001f9cc-9f1c-41bf-a68d-2f8b8eaeea21', 'dev');
                 break;
 
             case 'prod':
                 console.log('stage is prod!');
+                this.charge = 5000;
                 this.callbackUrl = 'https://api.openline.telspark.com/orders/payment';
                 opennode.setCredentials('6d2ab276-558d-4c30-815e-eff773eaa84e');
                 break;
@@ -30,7 +32,7 @@ export class OpenNodeChargeClient {
 
         try {
             return await opennode.createCharge({
-              amount: 1,
+              amount: this.charge,
               // currency: "USD",
               callback_url: this.callbackUrl,
               auto_settle: false,

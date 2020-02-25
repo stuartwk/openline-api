@@ -45,11 +45,11 @@ export const connectionHandler: Handler = async (event, _context) => {
 
 }
 
-export const getConnectionId: Handler = async (event, context) => {
+export const getConnectionId: Handler = async (event, _context) => {
 
   const requestContext = event.requestContext;
   const connectionClient = new ConnectionClient();
-  const stage = process.env.stage;
+  const stage = process.env.STAGE;
   const broadcastUrl = (stage === 'dev')
     ? 'z2eidukkpb.execute-api.us-east-1.amazonaws.com/dev'
     : '5m4ws104ok.execute-api.us-east-1.amazonaws.com/prod';
@@ -70,16 +70,18 @@ export const getConnectionId: Handler = async (event, context) => {
   
   console.log('message is: ', message);
 
-  return {
-    statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify({
-      message: 'get connection id successful',
-    }),
-  };
+  return;
+
+  // return {
+  //   statusCode: 200,
+  //   headers: {
+  //     'Access-Control-Allow-Origin': '*',
+  //     'Access-Control-Allow-Credentials': true,
+  //   },
+  //   body: JSON.stringify({
+  //     message: 'get connection id successful',
+  //   }),
+  // };
 }
 
 // necessary to deploy with
