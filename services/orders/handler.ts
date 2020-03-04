@@ -10,7 +10,6 @@ import { TelnyxConnectionsClient } from '../../lib/clients/telnyx-connections-cl
 import { SNS } from 'aws-sdk';
 const querystring = require('querystring');
 const crypto = require("crypto");
-const fetch = require('node-fetch');
 import { BroadcastType } from '../../lib/constants/broadcast-type.enum';
 
 export const create: APIGatewayProxyHandler = async (event, _context) => {
@@ -20,7 +19,7 @@ export const create: APIGatewayProxyHandler = async (event, _context) => {
   let exipiresAt = new Date();
   exipiresAt.setHours( exipiresAt.getHours() + 1 );
   const reqParams = JSON.parse(event.body);
-  const { phoneNumber, connectionId, region } = reqParams;
+  const { phoneNumber, connectionId, region, extendingOrder } = reqParams;
   const expiresUnix = Math.floor( (+ exipiresAt) / 1000);
   const { stage } = event.requestContext;
   const openNodeChargeClient = new OpenNodeChargeClient(stage);
@@ -41,15 +40,20 @@ export const create: APIGatewayProxyHandler = async (event, _context) => {
       expiresAt: expiresUnix, 
       chargeId: charge.id,
       status: OrderStatus.UNPAID,
-      region
+      region,
+      extendingOrder
     });
+
+    const orderRes = await ordersClient.fetchOne({id: order_id});
+    const order = orderRes.Item;
+    order.charge = charge;
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         message: 'Go Serverless Webpack (Typescript) v1.0! Your function executed successfully!',
-        input: {order_id},
+        input: {order},
       }, null, 2),
     };
 
@@ -138,57 +142,69 @@ export const openNodeChargeWebhook = async (event, _context) => {
 
     const orderRes = await ordersClient.fetchOne({id: order_id});
     const order = orderRes.Item;
-    const phonesRes = await phonesClient.fetchPhones({region: order.region});
-    const phones = phonesRes.Items;
-    const availablePhone = phones.find( (phone) => !phone.reservedUntil );
 
-    // SNS Params to Reserve Phone
-    var params = {
-      Message: `RESERVE_${order.region}_${availablePhone.phoneNumber}`, /* required */
-      MessageAttributes: {
-        type: {
-          DataType: 'String',
-          StringValue: 'RESERVE_PHONE'
+    let paidRes;
+
+    if (!order.extendingOrder) {
+      //INITIAL CALL
+      const phonesRes = await phonesClient.fetchPhones({region: order.region});
+      const phones = phonesRes.Items;
+      const availablePhone = phones.find( (phone) => !phone.reservedUntil );
+  
+      // SNS Params to Reserve Phone
+      var params = {
+        Message: `RESERVE_${order.region}_${availablePhone.phoneNumber}`, /* required */
+        MessageAttributes: {
+          type: {
+            DataType: 'String',
+            StringValue: 'RESERVE_PHONE'
+          },
+          phoneNumber: {
+            DataType: 'String',
+            StringValue: availablePhone.phoneNumber
+          },
+          region: {
+            DataType: 'String',
+            StringValue: order.region
+          }
         },
-        phoneNumber: {
-          DataType: 'String',
-          StringValue: availablePhone.phoneNumber
-        },
-        region: {
-          DataType: 'String',
-          StringValue: order.region
-        }
-      },
-      TopicArn: process.env.phoneSnsTopicArn,
-    };
+        TopicArn: process.env.phoneSnsTopicArn,
+      };
+  
+      // Reserve Phone SNS
+      await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(params).promise();
 
-    // Reserve Phone SNS
-    await new SNS({apiVersion: '2010-03-31', region: "us-east-1"}).publish(params).promise();
+      const connectionAuth = await telnyxConnectionClient.resetConnectionAuth(availablePhone.connectionId);
 
-    const connectionAuth = await telnyxConnectionClient.resetConnectionAuth(availablePhone.connectionId);
-
-    const connection = {
-      id: availablePhone.connectionId,
-      phoneNumber: availablePhone.phoneNumber,
-      userName: connectionAuth.user_name,
-      password: connectionAuth.password,
-      reservedUntil
-    };
-
-    const paidRes = await ordersClient.markOrderPaid({id: order_id, connection});
+      const connection = {
+        id: availablePhone.connectionId,
+        phoneNumber: availablePhone.phoneNumber,
+        userName: connectionAuth.user_name,
+        password: connectionAuth.password,
+        reservedUntil
+      };
+  
+      paidRes = await ordersClient.markOrderPaid({id: order_id, connection});
+  
+    } else {
+      // EXTENSION
+      paidRes = await ordersClient.markOrderPaid({id: order_id});
+    }
 
     if (paidRes.Attributes) {
 
       const paidOrder = paidRes.Attributes;
 
       const payload = {
-        type: 'ORDER_PAID',
+        type: (order.extendingOrder) 
+          ? `EXTENSION_ORDER_PAID` 
+          : `ORDER_PAID`,
         input: paidOrder
       };
 
       // Create Order Paid publish parameters
       const orderPaidParams = {
-        Message: `ORDER_PAID`,
+        Message: order.extendingOrder ? `EXTENSION_ORDER_PAID` : `ORDER_PAID`,
         MessageAttributes: {
             broadcastType: {
                 DataType: 'String',

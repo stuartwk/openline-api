@@ -70,18 +70,22 @@ export const getConnectionId: Handler = async (event, _context) => {
   
   console.log('message is: ', message);
 
-  return;
 
-  // return {
-  //   statusCode: 200,
-  //   headers: {
-  //     'Access-Control-Allow-Origin': '*',
-  //     'Access-Control-Allow-Credentials': true,
-  //   },
-  //   body: JSON.stringify({
-  //     message: 'get connection id successful',
-  //   }),
-  // };
+
+
+  return {
+    statusCode: 200,
+    headers: {
+      // 'Access-Control-Allow-Origin': '*', // TODO: SET SAFE CORS
+      'Access-Control-Allow-Origin': (stage === 'dev') 
+        ? '*'
+        : 'https://openline.telspark.com' , 
+      'Access-Control-Allow-Credentials': true,
+    },
+    body: JSON.stringify({
+      message: 'get connection id successful',
+    }),
+  };
 }
 
 // necessary to deploy with

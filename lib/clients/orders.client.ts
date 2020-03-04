@@ -20,7 +20,8 @@ export class OrdersClient {
         chargeId: string, 
         connectionId: string,
         status: OrderStatus,
-        region: PhoneRegion
+        region: PhoneRegion,
+        extendingOrder: boolean;
     }) {
         
         const query = {
@@ -58,24 +59,31 @@ export class OrdersClient {
 
     }
 
-    async markOrderPaid(p: {id: string, connection: {id: string, phoneNumber: string, userName: string, password: string, reservedUntil: number}}) {
+    async markOrderPaid(p: {id: string, connection?: {id: string, phoneNumber: string, userName: string, password: string, reservedUntil: number}}) {
 
-        const { id, connection } = p;
+        // const { id, connection } = p;
+        const id = p.id;
+
+        const updateExpression = (p.connection)
+            ? "SET #status = :status, #connection = :connection"
+            : "SET #status = :status";
+        
+        const attributeNames = (p.connection) 
+            ? {"#status" : "status", "#connection" : "callConnectionAuth"}
+            : {"#status" : "status"};
+
+        const attributeValues = (p.connection) 
+            ? {":status": 'PAID', ":connection": p.connection}
+            : {":status": 'PAID'}
 
         const params = {
             TableName: this.ordersTable,
             Key:{
                 "id": id,
             },
-            UpdateExpression: "SET #status = :status, #connection = :connection",
-            ExpressionAttributeNames : {
-                "#status" : "status",
-                "#connection" : "callConnectionAuth"
-            },
-            ExpressionAttributeValues:{
-                ":status": 'PAID',
-                ":connection": connection
-            },
+            UpdateExpression: updateExpression,
+            ExpressionAttributeNames : attributeNames,
+            ExpressionAttributeValues: attributeValues,
             ReturnValues:"ALL_NEW"
         };
         
