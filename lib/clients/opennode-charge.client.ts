@@ -9,7 +9,7 @@ export class OpenNodeChargeClient {
 
         switch (stage) {
             case 'dev':
-                this.charge = 1;
+                this.charge = 1000;
                 this.callbackUrl = 'https://api-dev.openline.telspark.com/orders/payment';
                 opennode.setCredentials('8001f9cc-9f1c-41bf-a68d-2f8b8eaeea21', 'dev');
                 break;
@@ -51,6 +51,20 @@ export class OpenNodeChargeClient {
             return await opennode.chargeInfo(chargeId);
         }
         catch (error) {
+            console.error(`${error.status} | ${error.message}`);
+            throw(error);
+        }
+
+    }
+
+    async createRefund(p: {chargeId: string, address: string}) {
+
+        try {
+            return await opennode.refundCharge({
+                checkout_id: p.chargeId,
+                address: p.address
+            });
+        } catch (error) {
             console.error(`${error.status} | ${error.message}`);
             throw(error);
         }

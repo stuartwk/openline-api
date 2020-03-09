@@ -45,8 +45,21 @@ export const create: APIGatewayProxyHandler = async (event, _context) => {
     });
 
     const orderRes = await ordersClient.fetchOne({id: order_id});
-    const order = orderRes.Item;
-    order.charge = charge;
+    const orderItem = orderRes.Item;
+    // order.charge = charge;
+
+    let order = {
+      id: orderItem.id,
+      phoneNumber: orderItem.phoneNumber, 
+      expiresAt: orderItem.expiresAt, 
+      // ip: order.ip, 
+      chargeId: orderItem.chargeId, 
+      // connectionId: string,
+      status: orderItem.status,
+      region: orderItem.region,
+      extendingOrder: orderItem.extendingOrder,
+      charge: charge,
+    }
 
     return {
       statusCode: 200,
@@ -84,12 +97,12 @@ export const fetchCharge: APIGatewayProxyHandler = async (event, _context) => {
   };
   const ordersClient = new OrdersClient();
   const openNodeChargeClient = new OpenNodeChargeClient(stage);
-  let order;
+  let orderItem;
   let charge;
 
   try {
     const orderRes = await ordersClient.fetchOne({id: orderId});
-    order = orderRes.Item;
+    orderItem = orderRes.Item;
   } catch (error) {
     console.error(`${error.status} | ${error.message}`);
     return {
@@ -103,12 +116,26 @@ export const fetchCharge: APIGatewayProxyHandler = async (event, _context) => {
   }
 
   try {
-    charge = await openNodeChargeClient.fetchCharge(order.chargeId);
+    charge = await openNodeChargeClient.fetchCharge(orderItem.chargeId);
   } catch (error) {
     console.error(`${error.status} | ${error.message}`);
   }
 
-  order.charge = charge;
+  // order.charge = charge;
+
+  let order = {
+    id: orderItem.id,
+    phoneNumber: orderItem.phoneNumber, 
+    expiresAt: orderItem.expiresAt, 
+    // ip: order.ip, 
+    chargeId: orderItem.chargeId, 
+    // connectionId: string,
+    status: orderItem.status,
+    region: orderItem.region,
+    extendingOrder: orderItem.extendingOrder,
+    charge: charge,
+    callConnectionAuth: (orderItem.callConnectionAuth) ? orderItem.callConnectionAuth : null
+  }
 
   return {
     statusCode: 200,
@@ -116,6 +143,74 @@ export const fetchCharge: APIGatewayProxyHandler = async (event, _context) => {
     body: JSON.stringify({
       message: 'Order successfully fetched',
       input: order,
+    }, null, 2),
+  };
+
+}
+
+export const refundOrder: APIGatewayProxyHandler = async (event, _context) => {
+
+  const CORS = process.env.CORS;
+  const headers = {
+    'Access-Control-Allow-Origin': CORS,
+    'Access-Control-Allow-Credentials': true,
+  };
+  const reqParams = JSON.parse(event.body);
+  const { stage } = event.requestContext;
+  const { orderId, connectionId, address } = reqParams;
+  const ordersClient = new OrdersClient();
+  const openNodeChargeClient = new OpenNodeChargeClient(stage);
+  let orderItem;
+
+  console.log('orderId is: ', orderId);
+  console.log('connectionId is: ', connectionId);
+  console.log('address is: ', address);
+
+  try {
+    const orderRes = await ordersClient.fetchOne({id: orderId});
+    orderItem = orderRes.Item;
+    console.log('order item is: ', orderItem);
+  } catch (error) {
+    console.error(`${error.status} | ${error.message}`);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        message: 'There was an error fetching your order',
+        error,
+      }, null, 2),
+    };
+  }
+
+  if (orderItem.connectionId !== connectionId) {
+    return {
+      statusCode: 404,
+      headers,
+      body: JSON.stringify({
+        message: 'Sorry, we couldn\'t find your order. Please contact us via Twitter or email at stu@telspark.com',
+      }, null, 2),
+    };
+  }
+
+  try {
+    const res = await openNodeChargeClient.createRefund({chargeId: orderItem.chargeId, address});
+    console.log('opennode refund response is ===> ', res);
+  } catch (error) {
+    console.log('error refunding! ', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        message: 'Sorry, something went wrong with your refund. Please contact us via Twitter or email at stu@telspark.com',
+      }, null, 2),
+    };
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      message: 'Refund successful',
     }, null, 2),
   };
 
