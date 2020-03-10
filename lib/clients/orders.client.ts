@@ -92,4 +92,28 @@ export class OrdersClient {
 
     }
 
+    async markOrderRefunded(orderId: string) {
+
+        const updateExpression = "SET #refunded = :refunded";
+        
+        const attributeNames = {"#refunded" : "refunded"};
+
+        const attributeValues = {":refunded": true}
+
+        const params = {
+            TableName: this.ordersTable,
+            Key:{
+                "id": orderId,
+            },
+            UpdateExpression: updateExpression,
+            ExpressionAttributeNames : attributeNames,
+            ExpressionAttributeValues: attributeValues,
+            ReturnValues:"ALL_NEW"
+        };
+        
+        console.log("marking order paid...");
+        return await this.docClient.update(params).promise();
+
+    }
+
 }

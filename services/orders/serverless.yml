@@ -125,6 +125,17 @@ functions:
       phoneSnsTopicArn: ${self:custom.phoneSnsTopicArn.${self:provider.stage}}
       connectionSnsTopicArn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
 
+  openNodeRefundWebhook:
+    handler: handler.openNodeRefundWebhook
+    events:
+      - http:
+          method: post
+          path: 'refund'
+          cors: true
+    # environment:
+    #   phoneSnsTopicArn: ${self:custom.phoneSnsTopicArn.${self:provider.stage}}
+    #   connectionSnsTopicArn: ${self:custom.connectionSnsTopicArn.${self:provider.stage}}
+
 
 resources:
   Resources:

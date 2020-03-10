@@ -1,4 +1,4 @@
-import { APIGatewayProxyHandler, SNSEvent } from 'aws-lambda';
+import { APIGatewayProxyHandler } from 'aws-lambda';
 import 'source-map-support/register';
 import { OpenNodeChargeClient } from '../../lib/clients/opennode-charge.client';
 import { OrdersClient } from '../../lib/clients/orders.client';
@@ -157,14 +157,14 @@ export const refundOrder: APIGatewayProxyHandler = async (event, _context) => {
   };
   const reqParams = JSON.parse(event.body);
   const { stage } = event.requestContext;
-  const { orderId, connectionId, address } = reqParams;
+  const { orderId, connectionId, invoice } = reqParams;
   const ordersClient = new OrdersClient();
   const openNodeChargeClient = new OpenNodeChargeClient(stage);
   let orderItem;
 
   console.log('orderId is: ', orderId);
   console.log('connectionId is: ', connectionId);
-  console.log('address is: ', address);
+  console.log('invoice is: ', invoice);
 
   try {
     const orderRes = await ordersClient.fetchOne({id: orderId});
@@ -182,37 +182,64 @@ export const refundOrder: APIGatewayProxyHandler = async (event, _context) => {
     };
   }
 
-  if (orderItem.connectionId !== connectionId) {
+  if (!orderItem.refunded) {
+
+    if (orderItem.connectionId !== connectionId) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({
+          message: 'Sorry, we couldn\'t find your order. Please contact us via Twitter or email at stu@telspark.com',
+        }, null, 2),
+      };
+    }
+  
+    try {
+      const res = await openNodeChargeClient.createRefund(invoice);
+      console.log('opennode refund response is ===> ', res);
+    } catch (error) {
+      console.log('error refunding! ', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          message: 'Sorry, something went wrong with your refund. Please contact us via Twitter or email at stu@telspark.com',
+        }, null, 2),
+      };
+    }
+  
+    // MARK ITEM REFUNDED!
+    try {
+      const updatedOrder = await ordersClient.markOrderRefunded(orderId);
+      console.log('refundedOrder is: ', updatedOrder);
+    } catch (error) {
+      console.log('error marking order refunded! ', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          message: 'Sorry, something went wrong with your refund. Please contact us via Twitter or email at stu@telspark.com',
+        }, null, 2),
+      };
+    }
+  
     return {
-      statusCode: 404,
+      statusCode: 200,
       headers,
       body: JSON.stringify({
-        message: 'Sorry, we couldn\'t find your order. Please contact us via Twitter or email at stu@telspark.com',
+        message: 'Refund successful',
+      }, null, 2),
+    };
+
+  } else {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        message: 'Order already refunded',
       }, null, 2),
     };
   }
-
-  try {
-    const res = await openNodeChargeClient.createRefund({chargeId: orderItem.chargeId, address});
-    console.log('opennode refund response is ===> ', res);
-  } catch (error) {
-    console.log('error refunding! ', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        message: 'Sorry, something went wrong with your refund. Please contact us via Twitter or email at stu@telspark.com',
-      }, null, 2),
-    };
-  }
-
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({
-      message: 'Refund successful',
-    }, null, 2),
-  };
 
 }
 
@@ -334,6 +361,30 @@ export const openNodeChargeWebhook = async (event, _context) => {
     body: JSON.stringify({
       message: 'Order successfully fetched',
       input: {},
+    }, null, 2),
+  };
+
+}
+
+export const openNodeRefundWebhook = async (event, _context) => {
+
+  console.log('opennode refund webhook!');
+
+  const reqBody = querystring.parse(event.body);
+  console.log('reqbody is: ', reqBody);
+
+  const headers = {
+    'Access-Control-Allow-Origin': '*.opennode.com',
+    'Access-Control-Allow-Credentials': true,
+  };
+
+
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      message: 'Refund webhook received',
     }, null, 2),
   };
 
